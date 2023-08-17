@@ -1,7 +1,6 @@
 /* source: http://marathon.csee.usf.edu/edge/edge_detection.html */
 /* URL: ftp://figment.csee.usf.edu/pub/Edge_Comparison/source_code/canny.src */
 
-/* ECPS 203 Assignment 5 solution */
 
 #include <stdio.h>
 #include <stdlib.h>
