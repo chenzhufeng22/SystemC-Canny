@@ -380,8 +380,6 @@ SC_MODULE(RECEIVER) {
 	/*******************************************************************************
 	* PROCEDURE: make_gaussian_kernel
 	* PURPOSE: Create a one dimensional gaussian kernel.
-	* NAME: Mike Heath
-	* DATE: 2/15/96
 	*******************************************************************************/
 
 	SC_MODULE(GAUSSIAN_KERNEL) {
@@ -435,8 +433,6 @@ SC_MODULE(RECEIVER) {
 	/*******************************************************************************
 	* PROCEDURE: gaussian_smooth
 	* PURPOSE: Blur an image with a gaussian filter.
-	* NAME: Mike Heath
-	* DATE: 2/15/96
 	*******************************************************************************/
 	SC_MODULE(BLURX) {
 		sc_fifo_in<IMAGE> imgInP;
@@ -605,8 +601,6 @@ SC_MODULE(RECEIVER) {
 	*         dx =  -1 0 +1     and       dy =  0
 	*                                          +1
 	*
-	* NAME: Mike Heath
-	* DATE: 2/15/96
 	*******************************************************************************/
 
 	SC_MODULE(DERIVATIVE_X_Y) {
@@ -671,8 +665,6 @@ SC_MODULE(RECEIVER) {
 	* PROCEDURE: magnitude_x_y
 	* PURPOSE: Compute the magnitude of the gradient. This is the square root of
 	* the sum of the squared derivative values.
-	* NAME: Mike Heath
-	* DATE: 2/15/96
 	*******************************************************************************/
 	SC_MODULE(MAGNITUDE_X_Y) {
 
@@ -723,8 +715,6 @@ SC_MODULE(RECEIVER) {
 	* PROCEDURE: non_max_supp
 	* PURPOSE: This routine applies non-maximal suppression to the magnitude of
 	* the gradient image.
-	* NAME: Mike Heath
-	* DATE: 2/15/96
 	*******************************************************************************/
 	SC_MODULE(NON_MAX_SUPP) {
 		sc_fifo_in<SIMAGE> magInP, dxInP, dyInP;
@@ -955,8 +945,6 @@ SC_MODULE(RECEIVER) {
 	* PURPOSE: This routine finds edges that are above some high threshhold or
 	* are connected to a high pixel by a path of pixels greater than a low
 	* threshold.
-	* NAME: Mike Heath
-	* DATE: 2/15/96
 	*******************************************************************************/
 	SC_MODULE(APPLY_HYSTERESIS) {
 		sc_fifo_in<SIMAGE> magInP;
@@ -1067,8 +1055,6 @@ SC_MODULE(RECEIVER) {
 			* PURPOSE: This procedure edges is a recursive routine that traces edgs along
 			* all paths whose magnitude values remain above some specifyable lower
 			* threshhold.
-			* NAME: Mike Heath
-			* DATE: 2/15/96
 			*******************************************************************************/
 			void follow_edges(unsigned char *edgemapptr, short *edgemagptr, short lowval,
 				int cols)
@@ -1117,54 +1103,8 @@ SC_MODULE(RECEIVER) {
 	/*******************************************************************************
 	* PROCEDURE: canny
 	* PURPOSE: To perform canny edge detection.
-	* NAME: Mike Heath
-	* DATE: 2/15/96
 	*******************************************************************************/
-	// void canny(unsigned char *image, int rows, int cols, float sigma,
-	//          float tlow, float thigh, unsigned char *edge)
-	// {
-	//    unsigned char nms[SIZE]    /* Points that are local maximal magnitude. */
-	// 			= {0};
-	//    short int smoothedim[SIZE] /* The image after gaussian smoothing.      */
-	// 			= {0},
-	//              delta_x[SIZE]    /* The first devivative image, x-direction. */
-	// 			= {0},
-	//              delta_y[SIZE]    /* The first derivative image, y-direction. */
-	// 			= {0},
-	//              magnitude[SIZE]  /* The magnitude of the gadient image.      */
-	// 			= {0};
-	//
-	//    /****************************************************************************
-	//    * Perform gaussian smoothing on the image using the input standard
-	//    * deviation.
-	//    ****************************************************************************/
-	//    if(VERBOSE) printf("Smoothing the image using a gaussian kernel.\n");
-	//    gaussian_smooth(image, rows, cols, sigma, smoothedim);
-	//
-	//    /****************************************************************************
-	//    * Compute the first derivative in the x and y directions.
-	//    ****************************************************************************/
-	//    if(VERBOSE) printf("Computing the X and Y first derivatives.\n");
-	//    derivative_x_y(smoothedim, rows, cols, delta_x, delta_y);
-	//
-	//    /****************************************************************************
-	//    * Compute the magnitude of the gradient.
-	//    ****************************************************************************/
-	//    if(VERBOSE) printf("Computing the magnitude of the gradient.\n");
-	//    magnitude_x_y(delta_x, delta_y, rows, cols, magnitude);
-	//
-	//    /****************************************************************************
-	//    * Perform non-maximal suppression.
-	//    ****************************************************************************/
-	//    if(VERBOSE) printf("Doing the non-maximal suppression.\n");
-	//    non_max_supp(magnitude, delta_x, delta_y, rows, cols, nms);
-	//
-	//    /****************************************************************************
-	//    * Use hysteresis to mark the edge pixels.
-	//    ****************************************************************************/
-	//    if(VERBOSE) printf("Doing hysteresis thresholding.\n");
-	//    apply_hysteresis(magnitude, nms, rows, cols, tlow, thigh, edge);
-	// }
+
 
 	SC_MODULE(DUT) {
 		sc_fifo_in<IMAGE> imgInP;
