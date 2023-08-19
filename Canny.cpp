@@ -141,6 +141,8 @@ typedef struct SImage_s {
 SC_MODULE(Stimulus){
 	IMAGE imageout;
 	sc_fifo_out<IMAGE> ImgOut;
+	sc_fifo_out<sc_time> timeOut;
+	sc_time startTime;
 	/******************************************************************************
 	* Function: read_pgm_image
 	* Purpose: This function reads in an image in PGM format. The image can be
@@ -224,6 +226,9 @@ SC_MODULE(Stimulus){
 	         exit(1);
 	      }
 	      ImgOut.write(imageout);
+				startTime = sc_time_stamp();
+				timeOut.write(startTime);
+				printf("%7d ms: Stimulus sent frame %02d.\n", (int)startTime.to_seconds()*1000, i+1);
 	   }
 	}
 
@@ -237,6 +242,8 @@ SC_MODULE(Stimulus){
 SC_MODULE(Monitor){
 	IMAGE imagein;
 	sc_fifo_in<IMAGE>  ImgIn;
+	sc_fifo_in<sc_time> timeIn;
+	sc_time startTime;
 
 	/******************************************************************************
 	* Function: write_pgm_image
@@ -285,12 +292,14 @@ SC_MODULE(Monitor){
 
 	void main(void)
 	{
+		 sc_time now = SC_ZERO_TIME, last = SC_ZERO_TIME;
 	   char outfilename[128];    /* Name of the output "edge" image */
 	   int i, n;
 
 	   for(i=0; i<IMG_NUM; i++)
 	   {
 	      ImgIn.read(imagein);
+				timeIn.read(startTime);
 
 	      /****************************************************************************
 	      * Write out the edge image to a file.
@@ -302,6 +311,14 @@ SC_MODULE(Monitor){
 	         fprintf(stderr, "Error writing the edge image, %s.\n", outfilename);
 	         exit(1);
 	      }
+				printf("%7d ms: Monitor received frame %02d with %7d ms delay.\n",
+				(int)(sc_time_stamp().to_seconds()*1000), i+1, (int)((sc_time_stamp()-startTime).to_seconds()*1000));
+				last = now;
+				now = sc_time_stamp();
+				if(i > 0){
+					printf("%7d ms: %.3f seconds after previous frame %02d, %.3f FPS.\n",
+					(int)(sc_time_stamp().to_seconds()*1000), (float)(now-last).to_seconds(), i, 1/(now-last).to_seconds());
+				}
 	   }
 	   if(VERBOSE) printf("Monitor exits simulation.\n");
 	      sc_stop();	// done testing, quit the simulation
@@ -445,33 +462,130 @@ SC_MODULE(RECEIVER) {
 
 		sc_fifo_out<TEMPIM> tempimOutP;
 
+		sc_event e1, e2, e3, e4, data_received;
+
 		IMAGE img;
 		KERNEL kernel;
 		int wdsize;
 		TEMPIM tempim;
 
-		void BlurX(){
-			int r, c, rr, cc,     /* Counter variables. */
-			windowsize,        /* Dimension of the gaussian kernel. */
-			center = wdsize /2;            /* Half of the windowsize. */
-			float dot, sum;
-			int rows = ROWS, cols = COLS;
-			/****************************************************************************
-			* Blur in the x - direction.
-			****************************************************************************/
-			if(VERBOSE) printf("   Bluring the image in the X-direction.\n");
-			for(r=0;r<rows;r++){
-				for(c=0;c<cols;c++){
-					dot = 0.0;
-					sum = 0.0;
-					for(cc=(-center);cc<=center;cc++){
-						if(((c+cc) >= 0) && ((c+cc) < cols)){
-							dot += (float)img[r*cols+(c+cc)] * kernel[center+cc];
-							sum += kernel[center+cc];
+		void BlurXT1(){
+			while(1){
+				wait(data_received);
+				int r, c, rr, cc,     /* Counter variables. */
+				windowsize,        /* Dimension of the gaussian kernel. */
+				center = wdsize /2;            /* Half of the windowsize. */
+				float dot, sum;
+				int rows = ROWS, cols = COLS;
+				/****************************************************************************
+				* Blur in the x - direction.
+				****************************************************************************/
+				if(VERBOSE) printf("   Bluring the image in the X-direction.\n");
+				for(r = (ROWS/4)*0; r <= (rows/4)*1-1; r++){
+					for(c=0;c<cols;c++){
+						dot = 0.0;
+						sum = 0.0;
+						for(cc=(-center);cc<=center;cc++){
+							if(((c+cc) >= 0) && ((c+cc) < cols)){
+								dot += (float)img[r*cols+(c+cc)] * kernel[center+cc];
+								sum += kernel[center+cc];
+							}
 						}
+						tempim[r*cols+c] = dot/sum;
 					}
-					tempim[r*cols+c] = dot/sum;
 				}
+				wait(1710/4, SC_MS);
+				e1.notify(SC_ZERO_TIME);
+			}
+		}
+
+		void BlurXT2(){
+			while(1){
+				wait(data_received);
+				int r, c, rr, cc,     /* Counter variables. */
+				windowsize,        /* Dimension of the gaussian kernel. */
+				center = wdsize /2;            /* Half of the windowsize. */
+				float dot, sum;
+				int rows = ROWS, cols = COLS;
+				/****************************************************************************
+				* Blur in the x - direction.
+				****************************************************************************/
+				if(VERBOSE) printf("   Bluring the image in the X-direction.\n");
+				for(r = (ROWS/4)*1; r <= (rows/4)*2-1; r++){
+					for(c=0;c<cols;c++){
+						dot = 0.0;
+						sum = 0.0;
+						for(cc=(-center);cc<=center;cc++){
+							if(((c+cc) >= 0) && ((c+cc) < cols)){
+								dot += (float)img[r*cols+(c+cc)] * kernel[center+cc];
+								sum += kernel[center+cc];
+							}
+						}
+						tempim[r*cols+c] = dot/sum;
+					}
+				}
+				wait(1710/4, SC_MS);
+				e2.notify(SC_ZERO_TIME);
+			}
+		}
+
+		void BlurXT3(){
+			while(1){
+				wait(data_received);
+				int r, c, rr, cc,     /* Counter variables. */
+				windowsize,        /* Dimension of the gaussian kernel. */
+				center = wdsize /2;            /* Half of the windowsize. */
+				float dot, sum;
+				int rows = ROWS, cols = COLS;
+				/****************************************************************************
+				* Blur in the x - direction.
+				****************************************************************************/
+				if(VERBOSE) printf("   Bluring the image in the X-direction.\n");
+				for(r = (ROWS/4)*2; r <= (rows/4)*3-1; r++){
+					for(c=0;c<cols;c++){
+						dot = 0.0;
+						sum = 0.0;
+						for(cc=(-center);cc<=center;cc++){
+							if(((c+cc) >= 0) && ((c+cc) < cols)){
+								dot += (float)img[r*cols+(c+cc)] * kernel[center+cc];
+								sum += kernel[center+cc];
+							}
+						}
+						tempim[r*cols+c] = dot/sum;
+					}
+				}
+				wait(1710/4, SC_MS);
+				e3.notify(SC_ZERO_TIME);
+			}
+		}
+
+		void BlurXT4(){
+			while(1){
+				wait(data_received);
+				int r, c, rr, cc,     /* Counter variables. */
+				windowsize,        /* Dimension of the gaussian kernel. */
+				center = wdsize /2;            /* Half of the windowsize. */
+				float dot, sum;
+				int rows = ROWS, cols = COLS;
+				/****************************************************************************
+				* Blur in the x - direction.
+				****************************************************************************/
+				if(VERBOSE) printf("   Bluring the image in the X-direction.\n");
+				for(r = (ROWS/4)*3; r <= (rows/4)*4-1; r++){
+					for(c=0;c<cols;c++){
+						dot = 0.0;
+						sum = 0.0;
+						for(cc=(-center);cc<=center;cc++){
+							if(((c+cc) >= 0) && ((c+cc) < cols)){
+								dot += (float)img[r*cols+(c+cc)] * kernel[center+cc];
+								sum += kernel[center+cc];
+							}
+						}
+						tempim[r*cols+c] = dot/sum;
+					}
+				}
+				wait(1710/4, SC_MS);
+				e4.notify(SC_ZERO_TIME);
 			}
 		}
 
@@ -480,7 +594,8 @@ SC_MODULE(RECEIVER) {
 				imgInP.read(img);
 				kerInP.read(kernel);
 				wdsInP.read(wdsize);
-				BlurX();
+				data_received.notify(SC_ZERO_TIME);
+				wait(e1 & e2 & e3 & e4);
 				tempimOutP.write(tempim);
 				wdsOutP.write(wdsize);
 				kerOutP.write(kernel);
@@ -489,6 +604,14 @@ SC_MODULE(RECEIVER) {
 
 		SC_CTOR(BLURX) {
 			SC_THREAD(main);
+			SET_STACK_SIZE;
+			SC_THREAD(BlurXT1);
+			SET_STACK_SIZE;
+			SC_THREAD(BlurXT2);
+			SET_STACK_SIZE;
+			SC_THREAD(BlurXT3);
+			SET_STACK_SIZE;
+			SC_THREAD(BlurXT4);
 			SET_STACK_SIZE;
 		}
 	};
@@ -499,35 +622,130 @@ SC_MODULE(RECEIVER) {
 		sc_fifo_in<int> wdsInP;
 
 		sc_fifo_out<SIMAGE> sdimOutP;
+
+		sc_event e1, e2, e3, e4, data_received;
 		TEMPIM tempim;
 		KERNEL kernel;
 		int wsize;
 		SIMAGE smoothedim;
 
-		void BlurY(){
-			int r, c, rr, /* Counter variables. */
-			center = wsize / 2;
-			float dot, sum;            /* Dot product summing variable. */
-			int rows = ROWS, cols = COLS;
+		void BlurYT1(){
+			while(1){
+				wait(data_received);
+				int r, c, rr, /* Counter variables. */
+				center = wsize / 2;
+				float dot, sum;            /* Dot product summing variable. */
+				int rows = ROWS, cols = COLS;
 
-			/****************************************************************************
-			* Blur in the y - direction.
-			****************************************************************************/
-			if(VERBOSE) printf("   Bluring the image in the Y-direction.\n");
-			for(c=0;c<cols;c++){
-				for(r=0;r<rows;r++){
-					sum = 0.0;
-					dot = 0.0;
-					for(rr=(-center);rr<=center;rr++){
-						if(((r+rr) >= 0) && ((r+rr) < rows)){
-							dot += tempim[(r+rr)*cols+c] * kernel[center+rr];
-							sum += kernel[center+rr];
+				/****************************************************************************
+				* Blur in the y - direction.
+				****************************************************************************/
+				if(VERBOSE) printf("   Bluring the image in the Y-direction.\n");
+				for(c = (COLS/4)*0; c <= (COLS/4)*1-1; c++){
+					for(r=0;r<rows;r++){
+						sum = 0.0;
+						dot = 0.0;
+						for(rr=(-center);rr<=center;rr++){
+							if(((r+rr) >= 0) && ((r+rr) < rows)){
+								dot += tempim[(r+rr)*cols+c] * kernel[center+rr];
+								sum += kernel[center+rr];
+							}
 						}
+						smoothedim[r*cols+c] = (short int)(dot*BOOSTBLURFACTOR/sum + 0.5);
 					}
-					smoothedim[r*cols+c] = (short int)(dot*BOOSTBLURFACTOR/sum + 0.5);
 				}
+				wait(1820/4, SC_MS);
+				e1.notify(SC_ZERO_TIME);
 			}
 		}
+
+		void BlurYT2(){
+			while(1){
+				wait(data_received);
+				int r, c, rr, /* Counter variables. */
+				center = wsize / 2;
+				float dot, sum;            /* Dot product summing variable. */
+				int rows = ROWS, cols = COLS;
+				/****************************************************************************
+				* Blur in the y - direction.
+				****************************************************************************/
+				if(VERBOSE) printf("   Bluring the image in the Y-direction.\n");
+				for(c = (COLS/4)*1; c <= (COLS/4)*2-1; c++){
+					for(r=0;r<rows;r++){
+						sum = 0.0;
+						dot = 0.0;
+						for(rr=(-center);rr<=center;rr++){
+							if(((r+rr) >= 0) && ((r+rr) < rows)){
+								dot += tempim[(r+rr)*cols+c] * kernel[center+rr];
+								sum += kernel[center+rr];
+							}
+						}
+						smoothedim[r*cols+c] = (short int)(dot*BOOSTBLURFACTOR/sum + 0.5);
+					}
+				}
+				wait(1820/4, SC_MS);
+				e2.notify(SC_ZERO_TIME);
+			}
+		}
+
+		void BlurYT3(){
+			while(1){
+				wait(data_received);
+				int r, c, rr, /* Counter variables. */
+				center = wsize / 2;
+				float dot, sum;            /* Dot product summing variable. */
+				int rows = ROWS, cols = COLS;
+				/****************************************************************************
+				* Blur in the y - direction.
+				****************************************************************************/
+				if(VERBOSE) printf("   Bluring the image in the Y-direction.\n");
+				for(c = (COLS/4)*2; c <= (COLS/4)*3-1; c++){
+					for(r=0;r<rows;r++){
+						sum = 0.0;
+						dot = 0.0;
+						for(rr=(-center);rr<=center;rr++){
+							if(((r+rr) >= 0) && ((r+rr) < rows)){
+								dot += tempim[(r+rr)*cols+c] * kernel[center+rr];
+								sum += kernel[center+rr];
+							}
+						}
+						smoothedim[r*cols+c] = (short int)(dot*BOOSTBLURFACTOR/sum + 0.5);
+					}
+				}
+				wait(1820/4, SC_MS);
+				e3.notify(SC_ZERO_TIME);
+			}
+		}
+
+		void BlurYT4(){
+			while(1){
+				wait(data_received);
+				int r, c, rr, /* Counter variables. */
+				center = wsize / 2;
+				float dot, sum;            /* Dot product summing variable. */
+				int rows = ROWS, cols = COLS;
+				/****************************************************************************
+				* Blur in the y - direction.
+				****************************************************************************/
+				if(VERBOSE) printf("   Bluring the image in the Y-direction.\n");
+				for(c = (COLS/4)*3; c <= (COLS/4)*4-1; c++){
+					for(r=0;r<rows;r++){
+						sum = 0.0;
+						dot = 0.0;
+						for(rr=(-center);rr<=center;rr++){
+							if(((r+rr) >= 0) && ((r+rr) < rows)){
+								dot += tempim[(r+rr)*cols+c] * kernel[center+rr];
+								sum += kernel[center+rr];
+							}
+						}
+						smoothedim[r*cols+c] = (short int)(dot*BOOSTBLURFACTOR/sum + 0.5);
+					}
+				}
+				wait(1820/4, SC_MS);
+				e4.notify(SC_ZERO_TIME);
+			}
+		}
+
 
 
 		void main(){
@@ -535,13 +753,22 @@ SC_MODULE(RECEIVER) {
 				tempimInP.read(tempim);
 				kerInP.read(kernel);
 				wdsInP.read(wsize);
-				BlurY();
+				data_received.notify(SC_ZERO_TIME);
+				wait(e1 & e2 & e3 & e4);
 				sdimOutP.write(smoothedim);
 			}
 		}
 
 		SC_CTOR(BLURY) {
 			SC_THREAD(main);
+			SET_STACK_SIZE;
+			SC_THREAD(BlurYT1);
+			SET_STACK_SIZE;
+			SC_THREAD(BlurYT2);
+			SET_STACK_SIZE;
+			SC_THREAD(BlurYT3);
+			SET_STACK_SIZE;
+			SC_THREAD(BlurYT4);
 			SET_STACK_SIZE;
 		}
 	};
@@ -647,6 +874,7 @@ SC_MODULE(RECEIVER) {
 		void main(){
 			while(1){
 				sdimInP.read(stdim);
+				wait(480, SC_MS);
 				derivative_x_y(stdim, ROWS, COLS, outX, outY);
 				dxOutP.write(outX);
 				dyOutP.write(outY);
@@ -693,6 +921,7 @@ SC_MODULE(RECEIVER) {
 					dyInP.read(dy);
 					dxOutP.write(dx);
 					dyOutP.write(dy);
+					wait(1030, SC_MS);
 					magnitude_x_y(dx, dy, ROWS, COLS, mag);
 					magOutP.write(mag);
 				}
@@ -926,6 +1155,7 @@ SC_MODULE(RECEIVER) {
 								magInP.read(mag);
 								dxInP.read(dx);
 								dyInP.read(dy);
+								wait(830, SC_MS);
 								non_max_supp(mag, dx, dy, ROWS, COLS, nms);
 								nmsOutP.write(nms);
 								magOutP.write(mag);
@@ -1080,7 +1310,7 @@ SC_MODULE(RECEIVER) {
 					while (1) {
 						magInP.read(mag);
 						nmsInP.read(nms);
-
+						wait(670, SC_MS);
 						apply_hysteresis(mag, nms, ROWS, COLS, TLOW, THIGH, edge);
 						edgeOutP.write(edge);
 					}
@@ -1092,19 +1322,55 @@ SC_MODULE(RECEIVER) {
 				}
 			};
 
-
-
-
-
-
-
-
-
 	/*******************************************************************************
 	* PROCEDURE: canny
 	* PURPOSE: To perform canny edge detection.
 	*******************************************************************************/
-
+	// void canny(unsigned char *image, int rows, int cols, float sigma,
+	//          float tlow, float thigh, unsigned char *edge)
+	// {
+	//    unsigned char nms[SIZE]    /* Points that are local maximal magnitude. */
+	// 			= {0};
+	//    short int smoothedim[SIZE] /* The image after gaussian smoothing.      */
+	// 			= {0},
+	//              delta_x[SIZE]    /* The first devivative image, x-direction. */
+	// 			= {0},
+	//              delta_y[SIZE]    /* The first derivative image, y-direction. */
+	// 			= {0},
+	//              magnitude[SIZE]  /* The magnitude of the gadient image.      */
+	// 			= {0};
+	//
+	//    /****************************************************************************
+	//    * Perform gaussian smoothing on the image using the input standard
+	//    * deviation.
+	//    ****************************************************************************/
+	//    if(VERBOSE) printf("Smoothing the image using a gaussian kernel.\n");
+	//    gaussian_smooth(image, rows, cols, sigma, smoothedim);
+	//
+	//    /****************************************************************************
+	//    * Compute the first derivative in the x and y directions.
+	//    ****************************************************************************/
+	//    if(VERBOSE) printf("Computing the X and Y first derivatives.\n");
+	//    derivative_x_y(smoothedim, rows, cols, delta_x, delta_y);
+	//
+	//    /****************************************************************************
+	//    * Compute the magnitude of the gradient.
+	//    ****************************************************************************/
+	//    if(VERBOSE) printf("Computing the magnitude of the gradient.\n");
+	//    magnitude_x_y(delta_x, delta_y, rows, cols, magnitude);
+	//
+	//    /****************************************************************************
+	//    * Perform non-maximal suppression.
+	//    ****************************************************************************/
+	//    if(VERBOSE) printf("Doing the non-maximal suppression.\n");
+	//    non_max_supp(magnitude, delta_x, delta_y, rows, cols, nms);
+	//
+	//    /****************************************************************************
+	//    * Use hysteresis to mark the edge pixels.
+	//    ****************************************************************************/
+	//    if(VERBOSE) printf("Doing hysteresis thresholding.\n");
+	//    apply_hysteresis(magnitude, nms, rows, cols, tlow, thigh, edge);
+	// }
 
 	SC_MODULE(DUT) {
 		sc_fifo_in<IMAGE> imgInP;
@@ -1201,12 +1467,15 @@ SC_MODULE(Top)
 	Stimulus stimulus;
 	Platform platform;
 	Monitor monitor;
+	sc_fifo<sc_time> timeCh;
 
 	void before_end_of_elaboration(){
 	   stimulus.ImgOut.bind(q1);
+		 stimulus.timeOut.bind(timeCh);
 	   platform.ImgIn.bind(q1);
 	   platform.ImgOut.bind(q2);
 	   monitor.ImgIn.bind(q2);
+		 monitor.timeIn.bind(timeCh);
 	}
 
 	SC_CTOR(Top)
